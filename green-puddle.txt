@@ -1,0 +1,70 @@
+Option Explicit
+
+Sub replace_dialog()
+
+    Dim objFileDialog As Office.FileDialog
+    Set objFileDialog = Application.FileDialog(msoFileDialogFilePicker)
+    
+    With objFileDialog
+        .Title = "Select a File"
+        .InitialFileName = Replace(ThisWorkbook.FullName, ThisWorkbook.Name, "/templates")
+        .AllowMultiSelect = True
+        .ButtonName = "Select"
+        .Filters.Clear
+        .Filters.Add "Word-Files", "*.do*"
+        .FilterIndex = 1
+        .Show
+    End With
+    
+    
+    Dim cur_word
+    For Each cur_word In objFileDialog.SelectedItems
+        replace_in_word cur_word
+    Next
+
+End Sub
+
+
+Sub replace_in_word(ByVal word_file As String)
+
+    Dim WA As Object, WD As Object
+    Set WA = CreateObject("Word.Application")
+    Set WD = WA.Documents.Add(word_file): DoEvents
+
+    Dim i As Integer: i = 1
+    Dim row: row = Selection.row
+    While Cells(1, i) <> ""
+        Dim key As String: key = "{" & Cells(1, i) & "}"
+        Dim val As String: val = Cells(row, i)
+        Debug.Print "cells " & i & ", '" & key & "', '" & val & "'"
+        replace_key_val WD, key, val
+        i = i + 1
+    Wend
+
+    Dim suffix: suffix = "results" & Application.PathSeparator & get_filename(word_file)
+    Dim save_name: save_name = Replace(ThisWorkbook.FullName, ThisWorkbook.Name, suffix)
+    
+    WD.SaveAs save_name, AddToRecentFiles:=False
+    WD.Close False: DoEvents
+
+End Sub
+
+
+Sub replace_key_val(ByRef WD As Object, key As String, val As String)
+    On Error Resume Next
+    WD.Select
+    With WD.Range.Find
+        .Text = key
+        .Replacement.Text = val
+        .Execute Replace:=2
+    End With
+End Sub
+
+
+Function get_filename(ByVal fname As String)
+    Dim paths() As String
+    paths = Split(fname, Application.PathSeparator)
+    get_filename = paths(UBound(paths))
+End Function
+
+
