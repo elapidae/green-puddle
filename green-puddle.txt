@@ -1,13 +1,17 @@
 Option Explicit
 
+Dim WA As Object
+
 Sub replace_dialog()
+
+    Set WA = CreateObject("Word.Application")
 
     Dim objFileDialog As Office.FileDialog
     Set objFileDialog = Application.FileDialog(msoFileDialogFilePicker)
-    
+
     With objFileDialog
         .Title = "Select a File"
-        .InitialFileName = Replace(ThisWorkbook.FullName, ThisWorkbook.Name, "/templates")
+        .InitialFileName = Replace(ThisWorkbook.FullName, ThisWorkbook.Name, "templates")
         .AllowMultiSelect = True
         .ButtonName = "Select"
         .Filters.Clear
@@ -15,21 +19,26 @@ Sub replace_dialog()
         .FilterIndex = 1
         .Show
     End With
-    
-    
+
+
     Dim cur_word
     For Each cur_word In objFileDialog.SelectedItems
         replace_in_word cur_word
     Next
 
+    Debug.Print "========== COOOOLLLL! ============"
+    Application.StatusBar = "========== Finished ============"
 End Sub
 
 
 Sub replace_in_word(ByVal word_file As String)
 
-    Dim WA As Object, WD As Object
-    Set WA = CreateObject("Word.Application")
-    Set WD = WA.Documents.Add(word_file): DoEvents
+    Debug.Print "About to doc file: '" & word_file & "'"
+    Application.StatusBar = "Processing '" & word_file & "'"
+
+    Dim WD As Object
+    Set WD = WA.Documents.Add(word_file)
+    DoEvents
 
     Dim i As Integer: i = 1
     Dim row: row = Selection.row
@@ -38,14 +47,16 @@ Sub replace_in_word(ByVal word_file As String)
         Dim val As String: val = Cells(row, i)
         Debug.Print "cells " & i & ", '" & key & "', '" & val & "'"
         replace_key_val WD, key, val
+        Application.StatusBar = "Processing '" & word_file & "' with column: " & i
         i = i + 1
     Wend
 
     Dim suffix: suffix = "results" & Application.PathSeparator & get_filename(word_file)
     Dim save_name: save_name = Replace(ThisWorkbook.FullName, ThisWorkbook.Name, suffix)
-    
+
     WD.SaveAs save_name, AddToRecentFiles:=False
-    WD.Close False: DoEvents
+    WD.Close
+    DoEvents
 
 End Sub
 
@@ -66,5 +77,3 @@ Function get_filename(ByVal fname As String)
     paths = Split(fname, Application.PathSeparator)
     get_filename = paths(UBound(paths))
 End Function
-
-
