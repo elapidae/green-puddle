@@ -1,0 +1,121 @@
+Option Explicit
+
+Dim WA As Object
+
+
+'========================================================================================
+Sub replace_dialog()
+
+    Set WA = CreateObject("Word.Application")
+
+    Dim objFileDialog As Office.FileDialog
+    Set objFileDialog = Application.FileDialog(msoFileDialogFilePicker)
+
+    With objFileDialog
+        .Title = "Select a File"
+        .InitialFileName = Replace(ThisWorkbook.FullName, ThisWorkbook.name, "templates")
+        .AllowMultiSelect = True
+        .ButtonName = "Select"
+        .Filters.Clear
+        .Filters.Add "Word-Files", "*.do*"
+        .FilterIndex = 1
+        .Show
+    End With
+
+
+    Dim cur_word
+    For Each cur_word In objFileDialog.SelectedItems
+        replace_in_word cur_word
+    Next
+
+    Debug.Print "========== Finished ============"
+    Application.StatusBar = "========== Finished ============"
+End Sub
+
+
+Sub replace_in_word(ByVal word_file As String)
+
+    Debug.Print "About to doc file: '" & word_file & "'"
+    Application.StatusBar = "Processing '" & word_file & "'"
+
+    Dim WD As Object
+    On Error GoTo open_err
+    Set WD = WA.Documents.Add(word_file)
+    DoEvents
+
+    Dim i As Integer: i = 1
+    Dim row: row = Selection.row
+    While Cells(1, i) <> ""
+        Dim key As String: key = "{" & Cells(1, i) & "}"
+        Dim val As String: val = Cells(row, i)
+        Debug.Print "cells " & i & ", '" & key & "', '" & val & "'"
+        replace_key_val WD, key, val
+        Application.StatusBar = "Processing '" & word_file & "' with column: " & i
+        i = i + 1
+    Wend
+
+    Dim suffix: suffix = "results" & Application.PathSeparator & get_filename(word_file)
+    Dim save_name: save_name = Replace(ThisWorkbook.FullName, ThisWorkbook.name, suffix)
+
+    WD.SaveAs save_name, AddToRecentFiles:=False
+    WD.Close
+    
+    Exit Sub
+open_err:
+    MsgBox "Cannot process file '" & word_file & "' error=" & Err & ", '" & Err.Description & "'"
+    open_doc (word_file)
+End Sub
+'========================================================================================
+Sub open_doc(ByVal name As String)
+    On Error Resume Next
+    'Dim doc: Set doc = WA.Documents.Open(name, Visible:=True, OpenAndRepair:=True)
+End Sub
+'========================================================================================
+Sub replace_key_val(ByRef WD As Object, key As String, payload As String)
+    Const max_len = 255
+    Const replace_marker = "{f@ng#word#cannot#repl#more#255}"
+    Dim marker_len As Integer: marker_len = Len(replace_marker)
+    Dim one_piece_len As Integer: one_piece_len = max_len - marker_len
+    
+    Dim payload_len As Integer: payload_len = Len(payload)
+    
+    Dim pieces As Integer: pieces = payload_len / one_piece_len
+    If pieces * one_piece_len < payload_len Then: pieces = pieces + 1
+    
+    Dim arr() As String
+    ReDim arr(pieces - 1)
+    Dim i As Integer, from As Integer
+    Dim piece As String
+    For i = LBound(arr) To UBound(arr)
+        from = i * one_piece_len + 1
+        piece = Mid$(payload, from, one_piece_len)
+        arr(i) = piece & replace_marker
+    Next i
+    
+    real_replace_key_val WD, key, replace_marker
+    For i = LBound(arr) To UBound(arr)
+        real_replace_key_val WD, replace_marker, arr(i)
+    Next i
+    real_replace_key_val WD, replace_marker, ""
+End Sub
+'========================================================================================
+Sub real_replace_key_val(ByRef WD As Object, key As String, val As String)
+
+    Debug.Print "About replace '" & key & "' to '" & val & "'"
+    
+    WD.Select
+    With WD.Range.Find
+        .Text = key
+        .Replacement.Text = val
+        .Execute Replace:=2
+    End With
+End Sub
+'========================================================================================
+
+
+Function get_filename(ByVal fname As String)
+    Dim paths() As String
+    paths = Split(fname, Application.PathSeparator)
+    get_filename = paths(UBound(paths))
+End Function
+
