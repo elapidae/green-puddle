@@ -72,15 +72,23 @@ Sub open_doc(ByVal name As String)
 End Sub
 '========================================================================================
 Sub replace_key_val(ByRef WD As Object, key As String, payload As String)
+
+    Dim payload_len As Integer: payload_len = Len(payload)
+    If payload_len = 0 Then
+        Debug.Print "Replacing empty payload"
+        real_replace_key_val WD, key, ""
+        Exit Sub
+    End If
+
     Const max_len = 255
     Const replace_marker = "{f@ng#word#cannot#repl#more#255}"
     Dim marker_len As Integer: marker_len = Len(replace_marker)
     Dim one_piece_len As Integer: one_piece_len = max_len - marker_len
     
-    Dim payload_len As Integer: payload_len = Len(payload)
     
     Dim pieces As Integer: pieces = payload_len / one_piece_len
     If pieces * one_piece_len < payload_len Then: pieces = pieces + 1
+    Debug.Print "Replacing payload, pieces = " & pieces
     
     Dim arr() As String
     ReDim arr(pieces - 1)
